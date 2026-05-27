@@ -51,8 +51,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "AURA Sovereign — Expense Tracker" },
+      { title: "Expensetracker" },
       { name: "description", content: "Premium expense tracking with budgets, dashboards, and live insights." },
+      { property: "og:title", content: "Expensetracker" },
+      { name: "twitter:title", content: "Expensetracker" },
+      { property: "og:description", content: "Premium expense tracking with budgets, dashboards, and live insights." },
+      { name: "twitter:description", content: "Premium expense tracking with budgets, dashboards, and live insights." },
+      { name: "twitter:card", content: "summary" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
