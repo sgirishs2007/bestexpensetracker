@@ -118,7 +118,12 @@ function TxPage() {
         })}
       </div>
 
-      <TransactionDrawer open={drawerOpen} onOpenChange={setDrawerOpen} userId={user!.id} editing={editing} />
+      <TransactionDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        userId={user?.id || ""}
+        editing={editing}
+      />
     </div>
   );
 }
