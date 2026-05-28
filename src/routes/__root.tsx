@@ -59,6 +59,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: "Premium expense tracking with budgets, dashboards, and live insights." },
       { name: "twitter:card", content: "summary" },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4aae9212-4c75-4fa6-ab2b-95653749dc49/id-preview-482a1955--5121905c-c451-4374-8562-94bdbebde847.lovable.app-1779934334292.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4aae9212-4c75-4fa6-ab2b-95653749dc49/id-preview-482a1955--5121905c-c451-4374-8562-94bdbebde847.lovable.app-1779934334292.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
