@@ -195,7 +195,16 @@ function Inner() {
               <div className="text-sm font-medium mt-0.5">Income vs Expense trajectory</div>
             </div>
           </div>
-          <div className="h-64">
+          <div
+            className="h-64 cursor-pointer"
+            onClick={() => {
+              // Fallback: if click misses a data point, alert on the latest (current) month
+              const p = areaData[areaData.length - 1];
+              if (!p) return;
+              if (p.expense > p.income) playExpenseAlert(p.label, p.expense - p.income, currency);
+              else playOkBeep(p.label, p.income - p.expense, currency);
+            }}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={areaData}
@@ -206,7 +215,7 @@ function Inner() {
                   if (p.expense > p.income) {
                     playExpenseAlert(p.label, p.expense - p.income, currency);
                   } else {
-                    playOkBeep();
+                    playOkBeep(p.label, p.income - p.expense, currency);
                   }
                 }}
               >
