@@ -9,6 +9,60 @@ import {
 } from "recharts";
 import { motion } from "framer-motion";
 import { useMemo } from "react";
+import { toast } from "sonner";
+
+function playOkBeep() {
+  try {
+    const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = "sine"; o.frequency.value = 880;
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+    o.start(); o.stop(ctx.currentTime + 0.2);
+  } catch {}
+}
+
+function playExpenseAlert(monthLabel: string, deficit: number, currency: string) {
+  // Sharp two-tone alarm beep
+  try {
+    const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
+    if (Ctx) {
+      const ctx = new Ctx();
+      [0, 0.22].forEach((t) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = "square";
+        o.frequency.value = 660;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+        g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.18);
+        o.start(ctx.currentTime + t);
+        o.stop(ctx.currentTime + t + 0.2);
+      });
+    }
+  } catch {}
+
+  // Spoken alert
+  try {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(
+        `Alert. In ${monthLabel}, your expenses are greater than your income by ${formatMoney(deficit, currency)}.`
+      );
+      u.rate = 1; u.pitch = 1; u.volume = 1;
+      // Tiny delay so the beep is heard first
+      setTimeout(() => window.speechSynthesis.speak(u), 450);
+    }
+  } catch {}
+
+  toast.error(`${monthLabel}: expenses exceed income by ${formatMoney(deficit, currency)}`);
+}
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
@@ -130,7 +184,19 @@ function Inner() {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={areaData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              <AreaChart
+                data={areaData}
+                margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                onClick={(state: any) => {
+                  const p = state?.activePayload?.[0]?.payload as { label: string; income: number; expense: number } | undefined;
+                  if (!p) return;
+                  if (p.expense > p.income) {
+                    playExpenseAlert(p.label, p.expense - p.income, currency);
+                  } else {
+                    playOkBeep();
+                  }
+                }}
+              >
                 <defs>
                   <linearGradient id="gIn" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
@@ -149,6 +215,7 @@ function Inner() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
+          <div className="mt-2 text-[10px] font-mono text-muted-foreground">Tip: tap any month on the chart for an audio status alert.</div>
         </motion.div>
 
         {/* Donut */}
