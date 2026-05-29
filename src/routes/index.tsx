@@ -11,44 +11,59 @@ import { motion } from "framer-motion";
 import { useMemo } from "react";
 import { toast } from "sonner";
 
-function playOkBeep() {
+// Shared AudioContext (created lazily on first user gesture)
+let _audioCtx: AudioContext | null = null;
+function getAudioCtx(): AudioContext | null {
   try {
     const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.type = "sine"; o.frequency.value = 880;
-    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
-    o.start(); o.stop(ctx.currentTime + 0.2);
+    if (!Ctx) return null;
+    if (!_audioCtx) _audioCtx = new Ctx();
+    if (_audioCtx.state === "suspended") _audioCtx.resume().catch(() => {});
+    return _audioCtx;
+  } catch { return null; }
+}
+
+function beep(ctx: AudioContext, freq: number, startOffset: number, duration: number, type: OscillatorType, peakGain: number) {
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.connect(g); g.connect(ctx.destination);
+  o.type = type;
+  o.frequency.value = freq;
+  const t0 = ctx.currentTime + startOffset;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(peakGain, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+  o.start(t0);
+  o.stop(t0 + duration + 0.02);
+}
+
+function playOkBeep(monthLabel: string, surplus: number, currency: string) {
+  const ctx = getAudioCtx();
+  if (ctx) {
+    beep(ctx, 880, 0, 0.18, "sine", 0.35);
+    beep(ctx, 1175, 0.18, 0.22, "sine", 0.35);
+  }
+  try {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const msg = surplus > 0
+        ? `Good. In ${monthLabel}, you saved ${formatMoney(surplus, currency)}.`
+        : `In ${monthLabel}, no activity recorded.`;
+      const u = new SpeechSynthesisUtterance(msg);
+      u.rate = 1; u.pitch = 1; u.volume = 1;
+      setTimeout(() => window.speechSynthesis.speak(u), 420);
+    }
   } catch {}
+  toast.success(`${monthLabel}: ${surplus > 0 ? `surplus ${formatMoney(surplus, currency)}` : "no activity"}`);
 }
 
 function playExpenseAlert(monthLabel: string, deficit: number, currency: string) {
-  // Sharp two-tone alarm beep
-  try {
-    const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
-    if (Ctx) {
-      const ctx = new Ctx();
-      [0, 0.22].forEach((t) => {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.type = "square";
-        o.frequency.value = 660;
-        g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
-        g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + t + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.18);
-        o.start(ctx.currentTime + t);
-        o.stop(ctx.currentTime + t + 0.2);
-      });
-    }
-  } catch {}
-
-  // Spoken alert
+  const ctx = getAudioCtx();
+  if (ctx) {
+    beep(ctx, 660, 0, 0.2, "square", 0.4);
+    beep(ctx, 520, 0.24, 0.2, "square", 0.4);
+    beep(ctx, 660, 0.48, 0.2, "square", 0.4);
+  }
   try {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
@@ -56,11 +71,9 @@ function playExpenseAlert(monthLabel: string, deficit: number, currency: string)
         `Alert. In ${monthLabel}, your expenses are greater than your income by ${formatMoney(deficit, currency)}.`
       );
       u.rate = 1; u.pitch = 1; u.volume = 1;
-      // Tiny delay so the beep is heard first
-      setTimeout(() => window.speechSynthesis.speak(u), 450);
+      setTimeout(() => window.speechSynthesis.speak(u), 700);
     }
   } catch {}
-
   toast.error(`${monthLabel}: expenses exceed income by ${formatMoney(deficit, currency)}`);
 }
 
@@ -182,7 +195,16 @@ function Inner() {
               <div className="text-sm font-medium mt-0.5">Income vs Expense trajectory</div>
             </div>
           </div>
-          <div className="h-64">
+          <div
+            className="h-64 cursor-pointer"
+            onClick={() => {
+              // Fallback: if click misses a data point, alert on the latest (current) month
+              const p = areaData[areaData.length - 1];
+              if (!p) return;
+              if (p.expense > p.income) playExpenseAlert(p.label, p.expense - p.income, currency);
+              else playOkBeep(p.label, p.income - p.expense, currency);
+            }}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={areaData}
@@ -193,7 +215,7 @@ function Inner() {
                   if (p.expense > p.income) {
                     playExpenseAlert(p.label, p.expense - p.income, currency);
                   } else {
-                    playOkBeep();
+                    playOkBeep(p.label, p.income - p.expense, currency);
                   }
                 }}
               >
