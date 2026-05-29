@@ -130,7 +130,19 @@ function Inner() {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={areaData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              <AreaChart
+                data={areaData}
+                margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                onClick={(state: any) => {
+                  const p = state?.activePayload?.[0]?.payload as { label: string; income: number; expense: number } | undefined;
+                  if (!p) return;
+                  if (p.expense > p.income) {
+                    playExpenseAlert(p.label, p.expense - p.income, currency);
+                  } else {
+                    playOkBeep();
+                  }
+                }}
+              >
                 <defs>
                   <linearGradient id="gIn" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
@@ -149,6 +161,7 @@ function Inner() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
+          <div className="mt-2 text-[10px] font-mono text-muted-foreground">Tip: tap any month on the chart for an audio status alert.</div>
         </motion.div>
 
         {/* Donut */}
